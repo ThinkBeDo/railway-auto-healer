@@ -45,6 +45,7 @@
         .healthy { color: #48bb78; }
         .error { color: #f56565; }
         .info { color: #4299e1; }
+        .warning { color: #ed8936; }
         .apps-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -75,7 +76,16 @@
         .app-info-item { font-size: 0.9rem; }
         .app-info-label { color: #718096; margin-bottom: 3px; }
         .app-info-value { font-weight: 500; color: #2d3748; }
-        .app-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .app-errors {
+            margin-top: 15px;
+            background: #fed7d7;
+            border-left: 4px solid #f56565;
+            padding: 12px;
+            border-radius: 4px;
+        }
+        .error-count { font-size: 0.9rem; color: #742a2a; font-weight: 600; margin-bottom: 8px; }
+        .error-message { color: #742a2a; font-size: 0.85rem; }
+        .app-actions { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
         .btn {
             padding: 8px 16px;
             border: none;
@@ -84,19 +94,43 @@
             font-weight: 500;
             cursor: pointer;
             transition: all 0.3s ease;
+            min-width: 90px;
         }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .btn-primary { background: #4299e1; color: white; }
-        .btn-primary:hover { background: #3182ce; }
+        .btn-primary:hover:not(:disabled) { background: #3182ce; }
         .btn-secondary { background: #e2e8f0; color: #4a5568; }
-        .btn-secondary:hover { background: #cbd5e0; }
+        .btn-secondary:hover:not(:disabled) { background: #cbd5e0; }
+        .btn-danger { background: #f56565; color: white; }
+        .btn-danger:hover:not(:disabled) { background: #e53e3e; }
         .connection-status {
             position: fixed; top: 20px; right: 20px;
             padding: 10px 15px; border-radius: 8px;
             font-size: 0.9rem; font-weight: 500; z-index: 1000;
+            min-width: 120px; text-align: center;
         }
         .connected { background: #c6f6d5; color: #22543d; }
         .disconnected { background: #fed7d7; color: #742a2a; }
-        .loading { display: flex; justify-content: center; align-items: center; height: 200px; font-size: 1.1rem; color: #718096; }
+        .connecting { background: #feebc8; color: #744210; }
+        .loading { 
+            display: flex; justify-content: center; align-items: center; 
+            height: 200px; font-size: 1.1rem; color: #718096; 
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #4299e1;
+            border-radius: 50%;
+            width: 30px; height: 30px;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
         .refresh-button {
             position: fixed; bottom: 30px; right: 30px;
             width: 60px; height: 60px; border-radius: 50%;
@@ -106,15 +140,34 @@
             transition: all 0.3s ease;
         }
         .refresh-button:hover { background: #3182ce; transform: scale(1.1); }
+        .debug-info {
+            position: fixed; bottom: 20px; left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white; padding: 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-family: monospace;
+            max-width: 300px;
+            display: none;
+        }
+        .debug-info.show { display: block; }
+        @media (max-width: 768px) {
+            .apps-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .app-actions { flex-direction: column; }
+            .btn { margin-bottom: 5px; }
+        }
     </style>
 </head>
 <body>
-    <div class="connection-status" id="connectionStatus">🔄 Connecting...</div>
+    <div class="connection-status connecting" id="connectionStatus">🔄 Connecting...</div>
+    
     <div class="container">
         <div class="header">
             <h1>🚀 Railway Auto-Healer</h1>
             <p>AI-powered monitoring and auto-healing for your Railway applications</p>
         </div>
+        
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-number healthy" id="totalApps">-</div>
@@ -129,51 +182,154 @@
                 <div class="stat-label">With Errors</div>
             </div>
             <div class="stat-card">
+                <div class="stat-number warning" id="healingApps">-</div>
+                <div class="stat-label">Healing</div>
+            </div>
+            <div class="stat-card">
                 <div class="stat-number info" id="totalHeals">-</div>
                 <div class="stat-label">Heals Today</div>
             </div>
         </div>
+
         <div id="appsContainer">
-            <div class="loading">Loading applications...</div>
+            <div class="loading">
+                <div class="spinner"></div>
+                Loading applications...
+            </div>
         </div>
     </div>
+
     <button class="refresh-button" onclick="refreshData()" title="Refresh Data">🔄</button>
+    
+    <div class="debug-info" id="debugInfo"></div>
+
     <script>
-        const socket = io();
+        // Enhanced Socket.io connection with fallbacks
+        const socket = io({
+            transports: ['websocket', 'polling'],
+            timeout: 10000,
+            forceNew: true
+        });
+
         let apps = [];
         let stats = {};
+        let connectionAttempts = 0;
+        let lastUpdate = null;
 
+        // Debug mode (press Ctrl+D to toggle)
+        let debugMode = false;
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'd') {
+                debugMode = !debugMode;
+                document.getElementById('debugInfo').classList.toggle('show', debugMode);
+            }
+        });
+
+        function updateDebugInfo(info) {
+            if (debugMode) {
+                document.getElementById('debugInfo').innerHTML = 
+                    `Last Update: ${new Date().toLocaleTimeString()}<br>` +
+                    `Connection: ${socket.connected ? 'Connected' : 'Disconnected'}<br>` +
+                    `Apps Loaded: ${apps.length}<br>` +
+                    `Transport: ${socket.io.engine.transport.name}<br>` +
+                    `Attempts: ${connectionAttempts}<br>` +
+                    (info ? `Info: ${info}` : '');
+            }
+        }
+
+        // Enhanced connection handling
         socket.on('connect', () => {
-            document.getElementById('connectionStatus').innerHTML = '✅ Connected';
-            document.getElementById('connectionStatus').className = 'connection-status connected';
+            connectionAttempts++;
+            console.log('✅ Connected to Railway Auto-Healer');
+            updateConnectionStatus('connected');
+            updateDebugInfo('Socket connected');
+            
+            // Request initial data
+            loadInitialData();
         });
 
-        socket.on('disconnect', () => {
-            document.getElementById('connectionStatus').innerHTML = '❌ Disconnected';
-            document.getElementById('connectionStatus').className = 'connection-status disconnected';
+        socket.on('disconnect', (reason) => {
+            console.log('❌ Disconnected:', reason);
+            updateConnectionStatus('disconnected');
+            updateDebugInfo(`Disconnected: ${reason}`);
         });
 
+        socket.on('connect_error', (error) => {
+            console.log('❌ Connection error:', error.message);
+            updateConnectionStatus('disconnected');
+            updateDebugInfo(`Connection error: ${error.message}`);
+            
+            // Fallback to REST API after 3 failed attempts
+            if (connectionAttempts >= 3) {
+                console.log('🔄 Falling back to REST API');
+                loadDataViaREST();
+            }
+        });
+
+        // Data event handlers
         socket.on('system_stats', (data) => {
+            console.log('📊 Received stats:', data);
             stats = data;
             updateStats();
+            updateDebugInfo('Stats updated');
         });
 
         socket.on('monitored_apps', (data) => {
+            console.log('📱 Received apps:', data);
             apps = data;
             renderApps();
+            lastUpdate = new Date();
+            updateDebugInfo('Apps updated');
         });
+
+        socket.on('app_status_update', (data) => {
+            console.log('🔄 App status update:', data);
+            const appIndex = apps.findIndex(app => app.id === data.appId);
+            if (appIndex !== -1) {
+                apps[appIndex] = { ...apps[appIndex], ...data.status };
+                renderApps();
+            }
+        });
+
+        socket.on('heartbeat', (data) => {
+            updateDebugInfo('Heartbeat received');
+        });
+
+        function updateConnectionStatus(status) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.className = `connection-status ${status}`;
+            
+            switch (status) {
+                case 'connected':
+                    statusEl.innerHTML = '✅ Connected';
+                    break;
+                case 'disconnected':
+                    statusEl.innerHTML = '❌ Disconnected';
+                    break;
+                case 'connecting':
+                    statusEl.innerHTML = '🔄 Connecting...';
+                    break;
+            }
+        }
 
         function updateStats() {
             document.getElementById('totalApps').textContent = stats.totalApps || 0;
             document.getElementById('healthyApps').textContent = stats.healthyApps || 0;
             document.getElementById('errorApps').textContent = stats.errorApps || 0;
+            document.getElementById('healingApps').textContent = stats.healingInProgress || 0;
             document.getElementById('totalHeals').textContent = stats.totalHealsToday || 0;
         }
 
         function renderApps() {
             const container = document.getElementById('appsContainer');
-            if (apps.length === 0) {
-                container.innerHTML = '<div class="loading">No applications found...</div>';
+            
+            if (!apps || apps.length === 0) {
+                container.innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        No applications found. Check connection or try refreshing.
+                    </div>
+                `;
                 return;
             }
 
@@ -192,14 +348,21 @@
         function createAppCard(app) {
             const card = document.createElement('div');
             card.className = 'app-card';
+            
             const statusClass = getStatusClass(app.status);
             const lastCheck = app.lastCheck ? new Date(app.lastCheck).toLocaleString() : 'Never';
+            const errorSection = (app.errors && app.errors.length > 0) ? 
+                `<div class="app-errors">
+                    <div class="error-count">🚨 ${app.errors.length} error(s) detected</div>
+                    <div class="error-message">${app.errors[0].message}</div>
+                </div>` : '';
 
             card.innerHTML = `
                 <div class="app-header">
                     <div class="app-name">${app.name}</div>
                     <div class="app-status ${statusClass}">${app.status}</div>
                 </div>
+                
                 <div class="app-info">
                     <div class="app-info-item">
                         <div class="app-info-label">Project</div>
@@ -215,13 +378,28 @@
                             ${app.url ? `<a href="${app.url}" target="_blank" style="color: #4299e1;">Visit</a>` : 'N/A'}
                         </div>
                     </div>
+                    <div class="app-info-item">
+                        <div class="app-info-label">Status</div>
+                        <div class="app-info-value">${getStatusEmoji(app.status)} ${app.status}</div>
+                    </div>
                 </div>
+
+                ${errorSection}
+
                 <div class="app-actions">
-                    <button class="btn btn-primary" onclick="requestAppStatus('${app.id}')">Refresh Status</button>
-                    <button class="btn btn-secondary" onclick="viewLogs('${app.id}')">View Logs</button>
-                    ${app.errors && app.errors.length > 0 ? `<button class="btn btn-primary" onclick="triggerHealing('${app.id}')">Heal Now</button>` : ''}
+                    <button class="btn btn-primary" onclick="requestAppStatus('${app.id}')">
+                        Refresh Status
+                    </button>
+                    <button class="btn btn-secondary" onclick="viewLogs('${app.id}')">
+                        View Logs
+                    </button>
+                    ${(app.errors && app.errors.length > 0) ? 
+                        `<button class="btn btn-danger" onclick="triggerHealing('${app.id}')">Heal Now</button>` : 
+                        '<button class="btn btn-primary" disabled>✅ Healthy</button>'
+                    }
                 </div>
             `;
+            
             return card;
         }
 
@@ -234,8 +412,32 @@
             }
         }
 
+        function getStatusEmoji(status) {
+            switch (status) {
+                case 'SUCCESS': return '✅';
+                case 'FAILED': case 'CRASHED': return '❌';
+                case 'BUILDING': case 'DEPLOYING': return '🔄';
+                default: return '⚪';
+            }
+        }
+
         function requestAppStatus(appId) {
-            socket.emit('request_app_status', appId);
+            if (socket.connected) {
+                socket.emit('request_app_status', appId);
+                updateDebugInfo(`Requested status for ${appId}`);
+            } else {
+                // Fallback to REST API
+                fetch(`/api/apps/${appId}/status`)
+                    .then(response => response.json())
+                    .then(app => {
+                        const appIndex = apps.findIndex(a => a.id === appId);
+                        if (appIndex !== -1) {
+                            apps[appIndex] = app;
+                            renderApps();
+                        }
+                    })
+                    .catch(error => console.error('Failed to refresh status:', error));
+            }
         }
 
         function viewLogs(appId) {
@@ -243,39 +445,114 @@
         }
 
         function triggerHealing(appId) {
-            if (confirm('Start healing process?')) {
+            const app = apps.find(a => a.id === appId);
+            if (!app) return;
+
+            if (confirm(`Start auto-healing process for ${app.name}?\\n\\nThis will attempt to automatically fix detected errors.`)) {
+                const healButton = event.target;
+                const originalText = healButton.textContent;
+                healButton.textContent = '🔧 Healing...';
+                healButton.disabled = true;
+
                 fetch(`/api/apps/${appId}/heal`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({})
                 })
                 .then(response => response.json())
-                .then(data => alert('✅ Healing started: ' + data.message))
-                .catch(error => alert('❌ Failed to start healing'));
+                .then(data => {
+                    console.log('✅ Healing started:', data);
+                    alert(`✅ ${data.message}\\nEstimated time: ${data.estimatedTime || '30 seconds'}`);
+                    
+                    // Reset button after estimated time
+                    setTimeout(() => {
+                        healButton.textContent = originalText;
+                        healButton.disabled = false;
+                        // Refresh app status
+                        requestAppStatus(appId);
+                    }, 4000);
+                })
+                .catch(error => {
+                    console.error('❌ Healing failed:', error);
+                    alert('❌ Failed to start healing process. Please try again.');
+                    healButton.textContent = originalText;
+                    healButton.disabled = false;
+                });
             }
         }
 
         function refreshData() {
-            window.location.reload();
+            console.log('🔄 Refreshing data...');
+            if (socket.connected) {
+                // Request fresh data via socket
+                socket.emit('request_app_status', 'all');
+            } else {
+                // Fallback to page reload
+                window.location.reload();
+            }
         }
 
-        // Initial load
+        // Load data via REST API (fallback)
+        function loadDataViaREST() {
+            console.log('📡 Loading data via REST API...');
+            updateConnectionStatus('connecting');
+            
+            fetch('/api/apps')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('📡 REST API data loaded:', data);
+                    apps = data.apps || [];
+                    stats = data.stats || {};
+                    renderApps();
+                    updateStats();
+                    updateConnectionStatus('connected');
+                    updateDebugInfo('REST API fallback successful');
+                })
+                .catch(error => {
+                    console.error('❌ REST API failed:', error);
+                    document.getElementById('appsContainer').innerHTML = `
+                        <div class="loading">
+                            ❌ Failed to load applications. Please check your connection.
+                            <br><br>
+                            <button class="btn btn-primary" onclick="refreshData()">Try Again</button>
+                        </div>
+                    `;
+                    updateDebugInfo(`REST API failed: ${error.message}`);
+                });
+        }
+
+        function loadInitialData() {
+            // If socket doesn't send data within 3 seconds, fall back to REST
+            setTimeout(() => {
+                if (apps.length === 0) {
+                    console.log('⚠️ Socket data timeout, trying REST API...');
+                    loadDataViaREST();
+                }
+            }, 3000);
+        }
+
+        // Initialize app
         setTimeout(() => {
-            if (apps.length === 0) {
-                fetch('/api/apps')
-                    .then(response => response.json())
-                    .then(data => {
-                        apps = data.apps || [];
-                        stats = data.stats || {};
-                        renderApps();
-                        updateStats();
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        document.getElementById('appsContainer').innerHTML = '<div class="loading">❌ Failed to load applications</div>';
-                    });
+            console.log('🚀 Initializing Railway Auto-Healer Dashboard...');
+            
+            if (!socket.connected && apps.length === 0) {
+                console.log('📡 Socket not connected, trying REST API...');
+                loadDataViaREST();
             }
+            
+            updateDebugInfo('Dashboard initialized');
         }, 1000);
+
+        // Auto-refresh every 60 seconds if no socket connection
+        setInterval(() => {
+            if (!socket.connected && apps.length > 0) {
+                console.log('🔄 Auto-refreshing via REST API...');
+                loadDataViaREST();
+            }
+        }, 60000);
+
+        console.log('🚀 Railway Auto-Healer Dashboard loaded');
+        console.log('💡 Press Ctrl+D to toggle debug information');
     </script>
 </body>
 </html>
