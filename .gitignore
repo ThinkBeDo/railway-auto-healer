@@ -1,0 +1,37 @@
+# Railway Auto-Healer Logs
+logs/
+*.log
+
+# Environment variables
+.env
+
+# Node modules
+node_modules/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Redis dumps
+dump.rdb
+
+# PM2 files
+ecosystem.config.js
+
+# Coverage reports
+coverage/
+
+# Build artifacts
+dist/
+build/
