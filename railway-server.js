@@ -20,8 +20,8 @@ class RailwayAutoHealer {
       healthyApps: this.demoApps.filter(app => app.status === 'SUCCESS').length,
       errorApps: this.demoApps.filter(app => app.errors && app.errors.length > 0).length,
       healingInProgress: 0,
-      totalHealsToday: 3,
-      successfulHeals: 2,
+      totalHealsToday: 5,
+      successfulHeals: 4,
       failedHeals: 1
     };
 
@@ -52,40 +52,70 @@ class RailwayAutoHealer {
         errors: []
       },
       {
-        id: 'jdm-shift-connect-service',
-        name: 'JDM Shift Connect',
-        projectName: 'JDM Platform',
-        status: 'SUCCESS',
-        url: 'https://jdm-shift-connect.railway.app',
-        lastDeployment: '2025-07-26T10:45:00Z',
-        lastCheck: new Date().toISOString(),
-        errors: []
-      },
-      {
         id: 'notifyre-batch-printing-service',
         name: 'Notifyre Batch Printing',
         projectName: 'Notifyre Suite',
-        status: 'BUILDING',
+        status: 'SUCCESS',
         url: 'https://notifyre-batch.railway.app',
         lastDeployment: '2025-07-26T16:40:00Z',
         lastCheck: new Date().toISOString(),
         errors: []
       },
       {
-        id: 'scoutly-matchmaker-service',
-        name: 'Scoutly MatchMaker',
-        projectName: 'Scoutly Platform',
+        id: 'caregiver-certification-app',
+        name: 'Caregiver Certification App',
+        projectName: 'Healthcare Platform',
         status: 'SUCCESS',
-        url: 'https://scoutly-matchmaker.railway.app',
-        lastDeployment: '2025-07-26T09:30:00Z',
+        url: 'https://caregiver-certification.railway.app',
+        lastDeployment: '2025-07-26T15:20:00Z',
+        lastCheck: new Date().toISOString(),
+        errors: []
+      },
+      {
+        id: 'n8n-railway-deployment',
+        name: 'N8N Workflow Automation',
+        projectName: 'Automation Suite',
+        status: 'SUCCESS',
+        url: 'https://n8n-library-production.up.railway.app',
+        lastDeployment: '2025-07-26T13:45:00Z',
+        lastCheck: new Date().toISOString(),
+        errors: []
+      },
+      {
+        id: 'ais-powerpoint-bot',
+        name: 'AIS PowerPoint Bot',
+        projectName: 'AI Assistant Suite',
+        status: 'SUCCESS',
+        url: 'https://ais-powerpoint-bot.railway.app',
+        lastDeployment: '2025-07-26T11:30:00Z',
+        lastCheck: new Date().toISOString(),
+        errors: []
+      },
+      {
+        id: 'benedict-monthly-invoice-agent',
+        name: 'Benedict Monthly Invoice Agent',
+        projectName: 'Financial Automation',
+        status: 'SUCCESS',
+        url: 'https://benedict-invoice-agent.railway.app',
+        lastDeployment: '2025-07-26T10:15:00Z',
+        lastCheck: new Date().toISOString(),
+        errors: []
+      },
+      {
+        id: 'platinum-shift-confirmation-app',
+        name: 'Platinum Shift Confirmation App',
+        projectName: 'Platinum Suite',
+        status: 'BUILDING',
+        url: 'https://platinum-shift-confirmation.railway.app',
+        lastDeployment: '2025-07-26T17:20:00Z',
         lastCheck: new Date().toISOString(),
         errors: [
           {
-            message: 'High memory usage detected: 85% of allocated memory',
+            message: 'Environment variable SHIFT_NOTIFICATION_WEBHOOK missing',
             timestamp: new Date().toISOString(),
-            severity: 'WARNING',
-            category: 'performance',
-            autoFixable: false
+            severity: 'ERROR',
+            category: 'configuration',
+            autoFixable: true
           }
         ]
       }
