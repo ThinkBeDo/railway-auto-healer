@@ -32,6 +32,17 @@ class RailwayAutoHealer {
   createDemoApps() {
     return [
       {
+        id: 'pdf-processor-app',
+        name: 'PDF Processor App',
+        projectName: 'Document Processing Suite',
+        status: 'SUCCESS',
+        url: 'https://pdf-processor-app-production.up.railway.app',
+        lastDeployment: '2025-07-27T17:54:00Z',
+        lastCheck: new Date().toISOString(),
+        description: 'PDF Merger and DocuSign Packet Splitter - Automatically splits healthcare staffing packets',
+        errors: []
+      },
+      {
         id: 'thayoda-embed-service',
         name: 'Thayoda Embed',
         projectName: 'ThinkBeDo Platform',
