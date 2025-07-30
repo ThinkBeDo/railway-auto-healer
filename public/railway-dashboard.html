@@ -45,15 +45,68 @@
             padding: 20px;
             text-align: center;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
         }
-        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15); }
+        
+        /* NEW: Clickable error card styling */
+        .stat-card.clickable {
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .stat-card.clickable:hover {
+            border-color: #f56565;
+            background: rgba(255, 255, 255, 0.98);
+        }
+        .stat-card.clickable::after {
+            content: "Click to view";
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            font-size: 0.7rem;
+            color: #718096;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .stat-card.clickable:hover::after {
+            opacity: 1;
+        }
+        
         .stat-number { font-size: 2.5rem; font-weight: 700; margin-bottom: 10px; }
         .stat-label { color: #718096; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
         .healthy { color: #48bb78; }
         .error { color: #f56565; }
         .info { color: #4299e1; }
         .warning { color: #ed8936; }
+        
+        /* NEW: Filter controls */
+        .filter-controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .filter-controls.hidden { display: none; }
+        .filter-label { font-weight: 600; color: #2d3748; }
+        .filter-button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .filter-button.active { background: #f56565; color: white; }
+        .filter-button:not(.active) { background: #e2e8f0; color: #4a5568; }
+        .filter-button:not(.active):hover { background: #cbd5e0; }
+        
         .apps-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -65,9 +118,29 @@
             border-radius: 15px;
             padding: 20px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, border 0.3s ease;
+            border: 2px solid transparent;
         }
         .app-card:hover { transform: translateY(-5px); }
+        
+        /* NEW: Error highlighting for app cards */
+        .app-card.has-errors {
+            border-color: #f56565;
+            background: rgba(254, 215, 215, 0.1);
+        }
+        .app-card.has-errors::before {
+            content: "⚠️";
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 1.2rem;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
         .app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .app-name { font-size: 1.2rem; font-weight: 600; color: #2d3748; }
         .app-status {
@@ -84,15 +157,41 @@
         .app-info-item { font-size: 0.9rem; }
         .app-info-label { color: #718096; margin-bottom: 3px; }
         .app-info-value { font-weight: 500; color: #2d3748; }
+        
+        /* ENHANCED: Better error display */
         .app-errors {
             margin-top: 15px;
-            background: #fed7d7;
+            background: linear-gradient(135deg, #fed7d7 0%, #fbb6ce 100%);
             border-left: 4px solid #f56565;
-            padding: 12px;
-            border-radius: 4px;
+            padding: 15px;
+            border-radius: 8px;
+            position: relative;
         }
-        .error-count { font-size: 0.9rem; color: #742a2a; font-weight: 600; margin-bottom: 8px; }
-        .error-message { color: #742a2a; font-size: 0.85rem; }
+        .app-errors::before {
+            content: "🚨";
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            font-size: 1.1rem;
+        }
+        .error-count { 
+            font-size: 0.95rem; 
+            color: #742a2a; 
+            font-weight: 700; 
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .error-message { 
+            color: #742a2a; 
+            font-size: 0.9rem; 
+            line-height: 1.4;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 8px 10px;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        
         .app-actions { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
         .btn {
             padding: 8px 16px;
@@ -147,11 +246,18 @@
             font-size: 0.8rem;
             color: #718096;
         }
+        
+        /* NEW: Hidden/filtered apps */
+        .app-card.filtered-out {
+            display: none;
+        }
+        
         @media (max-width: 768px) {
             .apps-grid { grid-template-columns: 1fr; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
             .app-actions { flex-direction: column; }
             .btn { margin-bottom: 5px; }
+            .filter-controls { flex-direction: column; align-items: flex-start; }
         }
     </style>
 </head>
@@ -174,7 +280,7 @@
                 <div class="stat-number healthy" id="healthyApps">-</div>
                 <div class="stat-label">Healthy</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card clickable" id="errorStatsCard" onclick="toggleErrorFilter()">
                 <div class="stat-number error" id="errorApps">-</div>
                 <div class="stat-label">With Errors</div>
             </div>
@@ -186,6 +292,14 @@
                 <div class="stat-number info" id="totalHeals">-</div>
                 <div class="stat-label">Heals Today</div>
             </div>
+        </div>
+
+        <!-- NEW: Filter controls -->
+        <div class="filter-controls hidden" id="filterControls">
+            <span class="filter-label">🔍 Viewing:</span>
+            <button class="filter-button" id="showAllBtn" onclick="showAllApps()">All Apps</button>
+            <button class="filter-button active" id="showErrorsBtn" onclick="showErrorApps()">Apps with Errors</button>
+            <span style="margin-left: auto; font-size: 0.9rem; color: #718096;" id="filterStatus">-</span>
         </div>
 
         <div id="appsContainer">
@@ -203,6 +317,7 @@
         let apps = [];
         let stats = {};
         let autoRefreshInterval;
+        let errorFilterActive = false;
 
         console.log('🚀 Railway Auto-Healer Dashboard Starting...');
 
@@ -212,6 +327,77 @@
             document.getElementById('errorApps').textContent = stats.errorApps || 0;
             document.getElementById('healingApps').textContent = stats.healingInProgress || 0;
             document.getElementById('totalHeals').textContent = stats.totalHealsToday || 0;
+            
+            // Update error card clickability
+            const errorCard = document.getElementById('errorStatsCard');
+            const errorCount = stats.errorApps || 0;
+            if (errorCount > 0) {
+                errorCard.classList.add('clickable');
+                errorCard.style.cursor = 'pointer';
+            } else {
+                errorCard.classList.remove('clickable');
+                errorCard.style.cursor = 'default';
+            }
+        }
+
+        // NEW: Error filtering functions
+        function toggleErrorFilter() {
+            const errorCount = stats.errorApps || 0;
+            if (errorCount === 0) {
+                alert('✅ No errors found! All applications are healthy.');
+                return;
+            }
+            
+            if (!errorFilterActive) {
+                showErrorApps();
+            } else {
+                showAllApps();
+            }
+        }
+
+        function showErrorApps() {
+            errorFilterActive = true;
+            document.getElementById('filterControls').classList.remove('hidden');
+            document.getElementById('showAllBtn').classList.remove('active');
+            document.getElementById('showErrorsBtn').classList.add('active');
+            
+            const errorApps = apps.filter(app => app.errors && app.errors.length > 0);
+            document.getElementById('filterStatus').textContent = `Showing ${errorApps.length} of ${apps.length} apps`;
+            
+            // Hide non-error apps
+            const appCards = document.querySelectorAll('.app-card');
+            appCards.forEach(card => {
+                const appId = card.dataset.appId;
+                const app = apps.find(a => a.id === appId);
+                if (!app || !app.errors || app.errors.length === 0) {
+                    card.classList.add('filtered-out');
+                } else {
+                    card.classList.remove('filtered-out');
+                }
+            });
+            
+            // Scroll to first error if any
+            if (errorApps.length > 0) {
+                setTimeout(() => {
+                    const firstErrorCard = document.querySelector('.app-card.has-errors:not(.filtered-out)');
+                    if (firstErrorCard) {
+                        firstErrorCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+            }
+        }
+
+        function showAllApps() {
+            errorFilterActive = false;
+            document.getElementById('filterControls').classList.add('hidden');
+            document.getElementById('showAllBtn').classList.add('active');
+            document.getElementById('showErrorsBtn').classList.remove('active');
+            
+            // Show all apps
+            const appCards = document.querySelectorAll('.app-card');
+            appCards.forEach(card => {
+                card.classList.remove('filtered-out');
+            });
         }
 
         function renderApps() {
@@ -237,18 +423,32 @@
 
             container.innerHTML = '';
             container.appendChild(appsGrid);
+            
+            // Reapply filter if active
+            if (errorFilterActive) {
+                showErrorApps();
+            }
         }
 
         function createAppCard(app) {
             const card = document.createElement('div');
             card.className = 'app-card';
+            card.dataset.appId = app.id;
+            
+            const hasErrors = app.errors && app.errors.length > 0;
+            if (hasErrors) {
+                card.classList.add('has-errors');
+            }
             
             const statusClass = getStatusClass(app.status);
             const lastCheck = app.lastCheck ? new Date(app.lastCheck).toLocaleString() : 'Never';
-            const errorSection = (app.errors && app.errors.length > 0) ? 
+            const errorSection = hasErrors ? 
                 `<div class="app-errors">
-                    <div class="error-count">🚨 ${app.errors.length} error(s) detected</div>
-                    <div class="error-message">${app.errors[0].message}</div>
+                    <div class="error-count">🚨 ${app.errors.length} Critical Error${app.errors.length > 1 ? 's' : ''} Detected</div>
+                    <div class="error-message">
+                        <strong>${app.errors[0].category || 'System'}:</strong> ${app.errors[0].message}
+                        ${app.errors[0].autoFixable ? '<br><small>✅ Auto-fixable</small>' : '<br><small>⚠️ Requires manual intervention</small>'}
+                    </div>
                 </div>` : '';
 
             card.innerHTML = `
@@ -273,8 +473,8 @@
                         </div>
                     </div>
                     <div class="app-info-item">
-                        <div class="app-info-label">Status</div>
-                        <div class="app-info-value">${getStatusEmoji(app.status)} Active</div>
+                        <div class="app-info-label">Health Status</div>
+                        <div class="app-info-value">${hasErrors ? '🚨 Issues Detected' : '✅ Healthy'}</div>
                     </div>
                 </div>
 
@@ -287,7 +487,7 @@
                     <button class="btn btn-secondary" onclick="viewLogs('${app.id}')">
                         📋 View Logs
                     </button>
-                    ${(app.errors && app.errors.length > 0) ? 
+                    ${hasErrors ? 
                         `<button class="btn btn-danger" onclick="triggerHealing('${app.id}')">🔧 Heal Now</button>` : 
                         '<button class="btn btn-primary" disabled>✅ Healthy</button>'
                     }
@@ -325,6 +525,13 @@
                     const appIndex = apps.findIndex(a => a.id === appId);
                     if (appIndex !== -1) {
                         apps[appIndex] = app;
+                        
+                        // Update stats if provided
+                        if (app.systemStats) {
+                            stats = app.systemStats;
+                            updateStats();
+                        }
+                        
                         renderApps();
                         updateLastUpdated();
                     }
@@ -366,7 +573,8 @@
                     setTimeout(() => {
                         healButton.textContent = originalText;
                         healButton.disabled = false;
-                        requestAppStatus(appId);
+                        // Refresh all data to get updated stats
+                        refreshData();
                     }, 4000);
                 })
                 .catch(error => {
@@ -391,6 +599,10 @@
                     updateStats();
                     updateLastUpdated();
                     updateStatusBar('success', `✅ Connected - Monitoring ${apps.length} Railway applications`);
+                    
+                    // Log error status for debugging
+                    const errorApps = apps.filter(app => app.errors && app.errors.length > 0);
+                    console.log(`📊 Stats: ${stats.totalApps} total, ${stats.errorApps} with errors, ${errorApps.length} actual error apps`);
                 })
                 .catch(error => {
                     console.error('❌ Failed to load data:', error);
@@ -408,6 +620,10 @@
         function refreshData() {
             console.log('🔄 Refreshing all data...');
             clearInterval(autoRefreshInterval);
+            
+            // Reset filter state
+            showAllApps();
+            
             loadData();
             startAutoRefresh();
         }

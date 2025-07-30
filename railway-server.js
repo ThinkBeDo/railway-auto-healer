@@ -15,15 +15,8 @@ class RailwayAutoHealer {
     
     // Demo data
     this.demoApps = this.createDemoApps();
-    this.systemStats = {
-      totalApps: this.demoApps.length,
-      healthyApps: this.demoApps.filter(app => app.status === 'SUCCESS').length,
-      errorApps: this.demoApps.filter(app => app.errors && app.errors.length > 0).length,
-      healingInProgress: 0,
-      totalHealsToday: 5,
-      successfulHeals: 4,
-      failedHeals: 1
-    };
+    // Remove static systemStats - will be calculated dynamically
+    this.systemStats = this.recalculateStats();
 
     this.setupMiddleware();
     this.setupRoutes();
@@ -133,6 +126,27 @@ class RailwayAutoHealer {
     ];
   }
 
+  // NEW: Dynamic stats recalculation method
+  recalculateStats() {
+    const totalApps = this.demoApps.length;
+    const healthyApps = this.demoApps.filter(app => 
+      app.status === 'SUCCESS' && (!app.errors || app.errors.length === 0)
+    ).length;
+    const errorApps = this.demoApps.filter(app => 
+      app.errors && app.errors.length > 0
+    ).length;
+
+    return {
+      totalApps,
+      healthyApps,
+      errorApps,
+      healingInProgress: 0, // This would be tracked separately in real implementation
+      totalHealsToday: 5,   // This would be tracked separately in real implementation
+      successfulHeals: 4,   // This would be tracked separately in real implementation
+      failedHeals: 1        // This would be tracked separately in real implementation
+    };
+  }
+
   setupMiddleware() {
     // Simplified middleware for Railway
     this.app.use(express.json());
@@ -171,7 +185,7 @@ class RailwayAutoHealer {
       res.json(health);
     });
 
-    // Apps endpoint - Core functionality
+    // Apps endpoint - Core functionality with DYNAMIC stats
     this.app.get('/api/apps', (req, res) => {
       console.log(`Apps endpoint: Returning ${this.demoApps.length} apps`);
       
@@ -179,6 +193,9 @@ class RailwayAutoHealer {
       this.demoApps.forEach(app => {
         app.lastCheck = new Date().toISOString();
       });
+
+      // FIXED: Recalculate stats dynamically
+      this.systemStats = this.recalculateStats();
 
       const response = {
         apps: this.demoApps,
@@ -202,7 +219,14 @@ class RailwayAutoHealer {
 
       app.lastCheck = new Date().toISOString();
       console.log(`Status requested for: ${app.name}`);
-      res.json(app);
+      
+      // ADDED: Include fresh stats with individual app status
+      const freshStats = this.recalculateStats();
+      
+      res.json({
+        ...app,
+        systemStats: freshStats
+      });
     });
 
     // App logs
@@ -249,7 +273,7 @@ class RailwayAutoHealer {
       res.json({ logs, appName: app.name });
     });
 
-    // Manual healing
+    // FIXED: Manual healing with stats recalculation
     this.app.post('/api/apps/:id/heal', (req, res) => {
       const { id } = req.params;
       const app = this.demoApps.find(a => a.id === id);
@@ -265,10 +289,15 @@ class RailwayAutoHealer {
       setTimeout(() => {
         if (app.errors && app.errors.length > 0) {
           const errorCount = app.errors.length;
-          app.errors = [];
-          app.status = 'SUCCESS';
+          app.errors = []; // Clear errors
+          app.status = 'SUCCESS'; // Update status
           app.lastCheck = new Date().toISOString();
+          
+          // FIXED: Recalculate stats after healing
+          this.systemStats = this.recalculateStats();
+          
           console.log(`✅ Healing completed for ${app.name} - cleared ${errorCount} error(s)`);
+          console.log(`📊 Updated stats - Error apps: ${this.systemStats.errorApps}`);
         }
       }, 3000);
 
@@ -281,10 +310,13 @@ class RailwayAutoHealer {
       });
     });
 
-    // System stats
+    // System stats with dynamic calculation
     this.app.get('/api/stats', (req, res) => {
+      // Always return fresh stats
+      const freshStats = this.recalculateStats();
+      
       res.json({
-        system: this.systemStats,
+        system: freshStats,
         safety: {
           fixesLastHour: 2,
           fixesLast24Hours: 8,
@@ -301,8 +333,24 @@ class RailwayAutoHealer {
       });
     });
 
-    // Debug endpoint
+    // NEW: Error apps endpoint for filtering
+    this.app.get('/api/apps/errors', (req, res) => {
+      const errorApps = this.demoApps.filter(app => 
+        app.errors && app.errors.length > 0
+      );
+      
+      console.log(`Error apps requested: ${errorApps.length} apps with errors`);
+      res.json({
+        errorApps,
+        count: errorApps.length,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    // Debug endpoint with fresh stats
     this.app.get('/api/debug', (req, res) => {
+      const freshStats = this.recalculateStats();
+      
       const debug = {
         platform: 'railway',
         environment: process.env.NODE_ENV || 'production',
@@ -316,7 +364,7 @@ class RailwayAutoHealer {
           errorCount: app.errors ? app.errors.length : 0,
           lastCheck: app.lastCheck
         })),
-        system: this.systemStats
+        system: freshStats
       };
 
       console.log('Debug info requested:', debug);
@@ -347,10 +395,15 @@ class RailwayAutoHealer {
       console.log(`🔧 Monitoring ${this.demoApps.length} Railway applications`);
       console.log(`⚡ Platform: Railway | Environment: ${process.env.NODE_ENV || 'production'}`);
       
-      // Log all apps
+      // Log all apps with error status
       this.demoApps.forEach(app => {
-        console.log(`   📱 ${app.name} (${app.status}) - ${app.projectName}`);
+        const errorCount = app.errors ? app.errors.length : 0;
+        console.log(`   📱 ${app.name} (${app.status}) - ${app.projectName} ${errorCount > 0 ? `⚠️ ${errorCount} errors` : '✅'}`);
       });
+      
+      // Log initial stats
+      const initialStats = this.recalculateStats();
+      console.log(`📊 Initial Stats: ${initialStats.totalApps} total, ${initialStats.healthyApps} healthy, ${initialStats.errorApps} with errors`);
     });
   }
 }
